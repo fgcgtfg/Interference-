@@ -30,7 +30,7 @@ const state = {
   wallpaper: store.get('wallpaper', WALLPAPERS[0].id),
   pinned: store.get('pinned', ['hub', 'music', 'games', 'web', 'terminal', 'settings']),
   windows: new Map(),
-  zTop: 20,
+  active: null,
   lastGame: store.get('lastGame', null),
   track: null,
   playing: false,
@@ -39,21 +39,21 @@ const state = {
 
 /* ============================== APPS ============================== */
 const APPS = {
-  hub:      { name: 'Hub',       icon: 'fa-clapperboard', w: 720, h: 520, render: renderHub },
-  music:    { name: 'Waveform',  icon: 'fa-music',        w: 420, h: 560, render: renderMusic },
-  games:    { name: 'Arcade',    icon: 'fa-gamepad',      w: 420, h: 480, render: renderGames },
-  web:      { name: 'Relay',     icon: 'fa-globe',        w: 640, h: 480, render: renderBrowser },
-  terminal: { name: 'Terminal',  icon: 'fa-terminal',     w: 620, h: 400, render: renderTerminal },
-  notes:    { name: 'Notes',     icon: 'fa-note-sticky',  w: 460, h: 400, render: renderNotes },
-  files:    { name: 'Files',     icon: 'fa-folder',       w: 640, h: 440, render: renderFiles },
-  settings: { name: 'Config',    icon: 'fa-sliders',      w: 620, h: 520, render: renderSettings },
-  log:      { name: 'Update Log', icon: 'fa-list-check',  w: 520, h: 460, render: renderLog },
-  calc:     { name: 'Calc',      icon: 'fa-calculator',   w: 300, h: 380, render: renderCalc }
+  hub:      { name: 'Hub',        icon: 'fa-clapperboard', render: renderHub },
+  music:    { name: 'Waveform',   icon: 'fa-music',        render: renderMusic },
+  games:    { name: 'Arcade',     icon: 'fa-gamepad',      render: renderGames },
+  web:      { name: 'Relay',      icon: 'fa-globe',        render: renderBrowser },
+  terminal: { name: 'Terminal',   icon: 'fa-terminal',     render: renderTerminal },
+  notes:    { name: 'Notes',      icon: 'fa-note-sticky',  render: renderNotes },
+  files:    { name: 'Files',      icon: 'fa-folder',       render: renderFiles },
+  settings: { name: 'Config',     icon: 'fa-sliders',      render: renderSettings },
+  log:      { name: 'Update Log', icon: 'fa-list-check',   render: renderLog },
+  calc:     { name: 'Calc',       icon: 'fa-calculator',   render: renderCalc }
 };
 
 /* ============================== BOOT ============================== */
 const BOOT_LINES = [
-  '[ 0.0000] interference kernel 1.0.4-itf (build 20260928)',
+  '[ 0.0000] interference kernel 1.1.0-itf (build 20260928)',
   '[ 0.0121] detecting carrier ......................... OK',
   '[ 0.0348] mounting /dev/signal0 ..................... OK',
   '[ 0.0712] noise floor calibrated at -94 dBm',
@@ -66,24 +66,27 @@ const BOOT_LINES = [
   '[ 0.4002] interference userspace ready. handing off.'
 ];
 
+let bootRunning = false;
 function startBoot() {
+  if (bootRunning) return;
+  bootRunning = true;
   $('#boot-content').classList.add('hide');
+  $('#boot-console').classList.add('on');
+  $('#boot-progress').classList.add('on');
   const con = $('#boot-console');
-  const prog = $('#boot-progress');
-  con.classList.add('on');
-  prog.classList.add('on');
   let i = 0;
   const step = () => {
-    if (i >= BOOT_LINES.length) { $('#boot-bar').style.width = '100%'; setTimeout(showLock, 550); return; }
+    if (!bootRunning) return;
+    if (i >= BOOT_LINES.length) { $('#boot-bar').style.width = '100%'; setTimeout(showLock, 500); return; }
     con.textContent += BOOT_LINES[i] + '\n';
     i++;
     $('#boot-bar').style.width = (i / BOOT_LINES.length * 100) + '%';
-    setTimeout(step, 160 + Math.random() * 180);
+    setTimeout(step, 150 + Math.random() * 170);
   };
   step();
 }
 
-function skipBoot() { $('#boot-bar').style.width = '100%'; showLock(); }
+function skipBoot() { bootRunning = false; $('#boot-bar').style.width = '100%'; showLock(); }
 
 function showLock() {
   $('#boot-layer').classList.add('gone');
@@ -99,15 +102,15 @@ function unlock() {
     lock.classList.remove('on', 'unlocking');
     document.body.classList.add('booted');
     state.booted = true;
-    setTimeout(() => toast('System', 'Welcome to INTERFERENCE', 'Right-click the desktop for options'), 900);
+    setTimeout(() => toast('System', 'Welcome to INTERFERENCE', 'Right-click the desktop for options'), 1000);
   }, 550);
 }
 
 function lockSystem() {
   document.body.classList.remove('booted');
   state.booted = false;
-  $('#lock-screen').classList.add('on');
   closeAllMenus();
+  $('#lock-screen').classList.add('on');
 }
 
 /* ============================== CLOCK ============================== */
@@ -137,42 +140,42 @@ function applyWallpaper(id) {
   $$('.wp-thumb').forEach(t => t.classList.toggle('active', t.dataset.wp === wp.id));
 }
 
-/* ============================== BACKGROUND FX ============================== */
+/* ============================== SNOW FX ============================== */
 const canvas = $('#fx-canvas');
 const ctx = canvas.getContext('2d');
-let particles = [];
+let flakes = [];
 
 function sizeCanvas() {
   canvas.width = innerWidth;
   canvas.height = innerHeight;
-  const count = Math.round(innerWidth * innerHeight / 26000);
-  particles = Array.from({ length: count }, () => ({
+  const count = Math.round(innerWidth * innerHeight / 22000);
+  flakes = Array.from({ length: count }, () => ({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
-    vx: (Math.random() - .5) * .22,
-    vy: (Math.random() - .5) * .22,
-    r: Math.random() * 1.6 + .4
+    vy: .25 + Math.random() * .75,
+    drift: (Math.random() - .5) * .35,
+    r: Math.random() * 1.7 + .5,
+    a: .18 + Math.random() * .45
   }));
 }
 addEventListener('resize', sizeCanvas);
 sizeCanvas();
 
-let frames = 0, lastFps = performance.now();
+let frames = 0, lastFps = performance.now(), phase = 0;
 function loop(now) {
   frames++;
-  if (now - lastFps >= 1000) {
-    $('#fps-val').textContent = frames;
-    frames = 0; lastFps = now;
-  }
+  if (now - lastFps >= 1000) { $('#fps-val').textContent = frames; frames = 0; lastFps = now; }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (state.fx) {
-    ctx.fillStyle = 'rgba(110,231,255,.55)';
-    for (const p of particles) {
-      p.x += p.vx; p.y += p.vy;
-      if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
-      if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
+    phase += .01;
+    for (const f of flakes) {
+      f.y += f.vy;
+      f.x += f.drift + Math.sin(phase + f.y * .01) * .25;
+      if (f.y > canvas.height) { f.y = -4; f.x = Math.random() * canvas.width; }
+      if (f.x < -4) f.x = canvas.width; if (f.x > canvas.width + 4) f.x = 0;
+      ctx.fillStyle = `rgba(255,255,255,${f.a})`;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -191,132 +194,92 @@ function toast(head, title, sub) {
   setTimeout(() => { el.style.transition = '.4s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 4200);
 }
 
-/* ============================== WINDOW MANAGER ============================== */
+/* ============================== WINDOWS ============================== */
+const FLUSH_APPS = new Set();
+
 function openApp(id) {
   const app = APPS[id];
   if (!app) return;
   closeAllMenus();
   if (!state.booted) unlock();
-  const existing = state.windows.get(id);
-  if (existing) {
-    existing.classList.remove('minimized');
-    focusWindow(id);
-    return existing;
+
+  let win = state.windows.get(id);
+  if (!win) {
+    win = document.createElement('section');
+    win.className = 'window';
+    win.innerHTML = `
+      <header class="win-header">
+        <div class="win-title">${app.name}</div>
+        <div class="win-controls">
+          <button class="win-btn btn-min" title="Minimize"></button>
+          <button class="win-btn btn-close" title="Close"></button>
+        </div>
+      </header>
+      <div class="win-body${FLUSH_APPS.has(id) ? ' flush' : ''}"></div>`;
+    $('#windows-layer').appendChild(win);
+    state.windows.set(id, win);
+    app.render($('.win-body', win), win);
+    $('.btn-min', win).onclick = () => minimizeApp(id);
+    $('.btn-close', win).onclick = () => closeApp(id);
   }
-  const win = document.createElement('section');
-  win.className = 'win';
-  const count = state.windows.size;
-  const w = Math.min(app.w, innerWidth - 60);
-  const h = Math.min(app.h, innerHeight - 140);
-  win.style.width = w + 'px';
-  win.style.height = h + 'px';
-  win.style.left = Math.max(20, (innerWidth - w) / 2 - 120 + count * 28) + 'px';
-  win.style.top = Math.max(60, (innerHeight - h) / 2 - 40 + count * 24) + 'px';
-  win.innerHTML = `
-    <header class="win-bar">
-      <div class="win-title"><i class="fas ${app.icon}"></i> ${app.name}</div>
-      <div class="win-ctrls">
-        <button class="win-ctrl min" title="Minimize"><i class="fas fa-minus"></i></button>
-        <button class="win-ctrl max" title="Maximize"><i class="fas fa-expand"></i></button>
-        <button class="win-ctrl close" title="Close"><i class="fas fa-times"></i></button>
-      </div>
-    </header>
-    <div class="win-body"></div>
-    <div class="win-resize"></div>`;
-  $('#windows-layer').appendChild(win);
-  state.windows.set(id, win);
-  app.render($('.win-body', win), win);
-
-  $('.min', win).onclick = () => { win.classList.add('minimized'); syncDock(); };
-  $('.max', win).onclick = () => toggleMax(win);
-  $('.close', win).onclick = () => closeApp(id);
-  win.addEventListener('mousedown', () => focusWindow(id));
-  makeDraggable(win, $('.win-bar', win));
-  makeResizable(win, $('.win-resize', win));
-  $('.win-bar', win).addEventListener('dblclick', () => toggleMax(win));
-
-  focusWindow(id);
-  syncDock();
+  showWindow(id);
   return win;
 }
 
-function toggleMax(win) {
-  if (win.classList.contains('maximized')) {
-    win.classList.remove('maximized');
-    Object.assign(win.style, win._prev);
-  } else {
-    win._prev = { left: win.style.left, top: win.style.top, width: win.style.width, height: win.style.height };
-    win.classList.add('maximized');
-    Object.assign(win.style, { left: '0px', top: '0px', width: '100vw', height: `calc(100vh - ${getComputedStyle(document.documentElement).getPropertyValue('--dock-h')} - 30px)` });
+function showWindow(id) {
+  for (const [key, w] of state.windows) {
+    if (key === id) continue;
+    w.classList.remove('active');
+    w.classList.add('minimized');
   }
+  const win = state.windows.get(id);
+  win.classList.remove('minimized');
+  win.classList.add('active', 'header-visible');
+  setTimeout(() => win.classList.remove('header-visible'), 1800);
+  state.active = id;
+  syncDock();
+}
+
+function minimizeApp(id) {
+  const win = state.windows.get(id);
+  if (!win) return;
+  win.classList.add('minimized');
+  win.classList.remove('active');
+  if (state.active === id) state.active = null;
+  syncDock();
 }
 
 function closeApp(id) {
   const win = state.windows.get(id);
   if (!win) return;
-  win.remove();
+  win.classList.remove('active');
+  win.classList.add('minimized');
+  setTimeout(() => win.remove(), 300);
   state.windows.delete(id);
+  if (state.active === id) state.active = null;
   syncDock();
-}
-
-function focusWindow(id) {
-  const win = state.windows.get(id);
-  if (!win) return;
-  state.zTop++;
-  win.style.zIndex = state.zTop;
-  $$('.win').forEach(w => w.classList.toggle('focused', w === win));
-  syncDock();
-}
-
-function makeDraggable(win, handle) {
-  handle.addEventListener('mousedown', e => {
-    if (e.target.closest('.win-ctrl') || win.classList.contains('maximized')) return;
-    const sx = e.clientX, sy = e.clientY;
-    const ox = win.offsetLeft, oy = win.offsetTop;
-    const move = ev => {
-      win.style.left = Math.max(-win.offsetWidth + 80, ox + ev.clientX - sx) + 'px';
-      win.style.top = Math.max(0, oy + ev.clientY - sy) + 'px';
-    };
-    const up = () => { removeEventListener('mousemove', move); removeEventListener('mouseup', up); };
-    addEventListener('mousemove', move);
-    addEventListener('mouseup', up);
-  });
-}
-
-function makeResizable(win, grip) {
-  grip.addEventListener('mousedown', e => {
-    e.stopPropagation();
-    const sx = e.clientX, sy = e.clientY;
-    const ow = win.offsetWidth, oh = win.offsetHeight;
-    const move = ev => {
-      win.style.width = Math.max(320, ow + ev.clientX - sx) + 'px';
-      win.style.height = Math.max(220, oh + ev.clientY - sy) + 'px';
-    };
-    const up = () => { removeEventListener('mousemove', move); removeEventListener('mouseup', up); };
-    addEventListener('mousemove', move);
-    addEventListener('mouseup', up);
-  });
 }
 
 /* ============================== DOCK / MENUS ============================== */
-function appButton(id, cls) {
+function dockButton(id) {
   const app = APPS[id];
   const b = document.createElement('button');
-  b.className = cls;
+  b.className = 'dock-item';
   b.title = app.name;
   b.dataset.app = id;
   b.innerHTML = `<i class="fas ${app.icon}"></i>`;
-  b.onclick = () => {
-    const win = state.windows.get(id);
-    if (win && !win.classList.contains('minimized') && win.classList.contains('focused')) {
-      win.classList.add('minimized'); syncDock();
-    } else openApp(id);
+  b.onclick = e => {
+    e.stopPropagation();
+    state.active === id ? minimizeApp(id) : openApp(id);
   };
   b.oncontextmenu = e => {
     e.preventDefault();
+    e.stopPropagation();
+    if (!state.pinned.includes(id)) return;
     state.pinned = state.pinned.filter(p => p !== id);
     store.set('pinned', state.pinned);
     renderDock();
+    renderMenus();
     toast('Taskbar', `Unpinned ${app.name}`);
   };
   return b;
@@ -325,43 +288,41 @@ function appButton(id, cls) {
 function renderDock() {
   const host = $('#dock-apps');
   host.innerHTML = '';
-  state.pinned.forEach(id => APPS[id] && host.appendChild(appButton(id, 'dock-app')));
+  state.pinned.forEach(id => APPS[id] && host.appendChild(dockButton(id)));
   syncDock();
 }
 
 function syncDock() {
+  $$('#dock-apps .dock-item').forEach(b => {
+    b.classList.toggle('running', state.windows.has(b.dataset.app));
+    b.classList.toggle('active', state.active === b.dataset.app);
+  });
   const tasks = $('#dock-tasks');
   tasks.innerHTML = '';
-  $$('#dock-apps .dock-app').forEach(b => {
-    const win = state.windows.get(b.dataset.app);
-    b.classList.toggle('running', !!win);
-    b.classList.toggle('active', !!win && win.classList.contains('focused') && !win.classList.contains('minimized'));
-  });
   for (const id of state.windows.keys()) {
     if (state.pinned.includes(id)) continue;
-    const b = appButton(id, 'dock-app');
-    const win = state.windows.get(id);
+    const b = dockButton(id);
     b.classList.add('running');
-    b.classList.toggle('active', win.classList.contains('focused') && !win.classList.contains('minimized'));
+    b.classList.toggle('active', state.active === id);
     tasks.appendChild(b);
   }
 }
 
-function tile(id, onClick) {
+function tile(id, cls) {
   const app = APPS[id];
   const el = document.createElement('div');
-  el.className = 'app-tile';
+  el.className = cls;
   el.dataset.name = app.name.toLowerCase();
   el.innerHTML = `<div class="tile-icon"><i class="fas ${app.icon}"></i></div><span>${app.name}</span>`;
-  el.onclick = () => (onClick || openApp)(id);
+  el.onclick = () => { closeAllMenus(); openApp(id); };
   el.oncontextmenu = e => {
     e.preventDefault();
-    if (!state.pinned.includes(id)) {
-      state.pinned.push(id);
-      store.set('pinned', state.pinned);
-      renderDock();
-      toast('Taskbar', `Pinned ${app.name}`);
-    }
+    if (state.pinned.includes(id)) return;
+    state.pinned.push(id);
+    store.set('pinned', state.pinned);
+    renderDock();
+    renderMenus();
+    toast('Taskbar', `Pinned ${app.name}`);
   };
   return el;
 }
@@ -369,10 +330,10 @@ function tile(id, onClick) {
 function renderMenus() {
   const pin = $('#pinned-grid');
   pin.innerHTML = '';
-  state.pinned.forEach(id => APPS[id] && pin.appendChild(tile(id)));
+  state.pinned.forEach(id => APPS[id] && pin.appendChild(tile(id, 'pinned-item')));
   const drawer = $('#drawer-grid');
   drawer.innerHTML = '';
-  Object.keys(APPS).forEach(id => drawer.appendChild(tile(id, i => { closeAllMenus(); openApp(i); })));
+  Object.keys(APPS).forEach(id => drawer.appendChild(tile(id, 'drawer-item')));
 }
 
 function closeAllMenus() {
@@ -406,7 +367,7 @@ function renderHub(body) {
   });
 }
 
-let audioCtx = null, osc = null, gain = null;
+let audioCtx = null, osc = null, gainNode = null;
 function renderMusic(body) {
   body.innerHTML = `
     <div class="player">
@@ -446,11 +407,11 @@ function playTrack(idx) {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     stopTone(true);
     osc = audioCtx.createOscillator();
-    gain = audioCtx.createGain();
+    gainNode = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.value = t.freq;
-    gain.gain.value = 0.045;
-    osc.connect(gain).connect(audioCtx.destination);
+    gainNode.gain.value = 0.045;
+    osc.connect(gainNode).connect(audioCtx.destination);
     osc.start();
   } catch { /* audio unavailable */ }
   state.playing = true;
@@ -479,11 +440,15 @@ function paintTrack() {
 
 function renderGames(body) {
   body.innerHTML = `
-    <h3 class="section-title">Arcade · Interlock</h3>
-    <div class="game-board" id="gb"></div>
-    <div class="row between"><span id="g-status">You are X</span><button class="btn" id="g-reset">Reset</button></div>`;
+    <div class="game-wrap">
+      <h3 class="section-title">Arcade · Interlock</h3>
+      <div class="game-board" id="gb"></div>
+      <div class="row between"><span id="g-status">You are X</span><button class="btn" id="g-reset">Reset</button></div>
+    </div>`;
   const board = $('#gb', body);
+  const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   let cells = Array(9).fill('');
+  const winnerLine = c => LINES.find(l => c[l[0]] && c[l[0]] === c[l[1]] && c[l[1]] === c[l[2]]);
   const paint = () => {
     board.innerHTML = '';
     cells.forEach((c, i) => {
@@ -494,20 +459,16 @@ function renderGames(body) {
       board.appendChild(d);
     });
   };
-  const winner = c => {
-    const L = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    return L.some(l => c[l[0]] && c[l[0]] === c[l[1]] && c[l[1]] === c[l[2]]) ? c[L.find(l => c[l[0]] && c[l[0]] === c[l[1]] && c[l[1]] === c[l[2]])[0]] : null;
-  };
   const move = i => {
-    if (cells[i] || winner(cells)) return;
+    if (cells[i] || winnerLine(cells)) return;
     cells[i] = 'X'; paint();
-    let w = winner(cells);
-    if (w || cells.every(Boolean)) return end(w);
+    let l = winnerLine(cells);
+    if (l || cells.every(Boolean)) return end(l && cells[l[0]]);
     const free = cells.map((c, j) => c ? null : j).filter(j => j !== null);
     cells[free[Math.floor(Math.random() * free.length)]] = 'O';
     paint();
-    w = winner(cells);
-    if (w || cells.every(Boolean)) end(w);
+    l = winnerLine(cells);
+    if (l || cells.every(Boolean)) end(l && cells[l[0]]);
   };
   const end = w => {
     $('#g-status', body).textContent = w ? `${w} wins` : 'Draw';
@@ -522,7 +483,7 @@ function renderGames(body) {
 
 const PAGES = {
   'itf://home': '<h3 class="section-title">Relay Home</h3><p>You are browsing the internal relay network. Try <b>itf://docs</b>, <b>itf://status</b> or <b>itf://secret</b>.</p>',
-  'itf://docs': '<h3 class="section-title">Docs</h3><p>INTERFERENCE is a browser-based desktop environment. Windows are draggable and resizable, apps persist their state in localStorage, and everything runs client-side with no build step.</p>',
+  'itf://docs': '<h3 class="section-title">Docs</h3><p>INTERFERENCE is a browser-based desktop environment. Apps open fullscreen; hover the top edge to reveal the window header, hover the bottom edge to bring back the dock. Everything runs client-side with no build step.</p>',
   'itf://status': '<h3 class="section-title">Network Status</h3><p>Carrier: <b>stable</b><br>Noise floor: <b>-94 dBm</b><br>Relay nodes online: <b>12 / 12</b></p>',
   'itf://secret': '<h3 class="section-title">Classified</h3><p>Access code accepted. Encrypted files unlocked in the Files app.</p>'
 };
@@ -530,14 +491,18 @@ const PAGES = {
 function renderBrowser(body) {
   body.innerHTML = `
     <div class="browser-bar">
-      <button class="btn" id="b-go"><i class="fas fa-arrow-right"></i></button>
       <input class="browser-url" id="b-url" value="itf://home">
+      <button class="btn primary" id="b-go">Go</button>
     </div>
     <div class="browser-view" id="b-view"></div>`;
   const go = () => {
     const url = $('#b-url', body).value.trim().toLowerCase();
     const page = PAGES[url];
-    $('#b-view', body).innerHTML = page || `<h3 class="section-title">Not found</h3><p>No relay node answered <b>${url.replace(/[<>]/g, '')}</b>.</p>`;
+    if (page) $('#b-view', body).innerHTML = page;
+    else {
+      $('#b-view', body).innerHTML = '<h3 class="section-title">Not found</h3><p>No relay node answered <b></b>.</p>';
+      $('#b-view b', body).textContent = url;
+    }
     if (url === 'itf://secret') { state.unlockedFiles = true; store.set('unlockedFiles', true); toast('Relay', 'Encrypted files unlocked'); }
   };
   $('#b-go', body).onclick = go;
@@ -550,35 +515,36 @@ function renderTerminal(body) {
     <div class="term-input-row"><span class="prompt">admin@interference:~$</span><input class="term-input" id="t-in" autocomplete="off"></div></div>`;
   const out = $('#t-out', body);
   const print = txt => { const d = document.createElement('div'); d.className = 'line'; d.textContent = txt; out.appendChild(d); };
-  print('INTERFERENCE shell 1.0.4 — type "help"');
+  print('INTERFERENCE shell 1.1.0 — type "help"');
   const cmds = {
     help: () => print('help  whoami  apps  open <app>  wallpaper <id>  fx  clear  date  echo  neofetch'),
     whoami: () => print('administrator'),
     apps: () => print(Object.keys(APPS).join('  ')),
     date: () => print(new Date().toString()),
     clear: () => (out.innerHTML = ''),
-    fx: () => { state.fx = !state.fx; store.set('fx', state.fx); print('background fx: ' + (state.fx ? 'on' : 'off')); },
-    neofetch: () => print(`    ░▒▓  INTERFERENCE\n    OS      interference 1.0.4\n    Shell   itfsh\n    WM      glasswm\n    Apps    ${Object.keys(APPS).length}\n    Res     ${innerWidth}x${innerHeight}`)
+    fx: () => { state.fx = !state.fx; store.set('fx', state.fx); print('snow fx: ' + (state.fx ? 'on' : 'off')); },
+    neofetch: () => print(`    ░▒▓  INTERFERENCE\n    OS      interference 1.1.0\n    Shell   itfsh\n    WM      glasswm\n    Apps    ${Object.keys(APPS).length}\n    Res     ${innerWidth}x${innerHeight}`)
   };
   $('#t-in', body).onkeydown = e => {
     if (e.key !== 'Enter') return;
     const raw = e.target.value.trim();
     e.target.value = '';
     print('admin@interference:~$ ' + raw);
-    if (!raw) return;
-    const [cmd, ...args] = raw.split(/\s+/);
-    if (cmd === 'open') { APPS[args[0]] ? openApp(args[0]) : print('no such app: ' + args[0]); }
-    else if (cmd === 'echo') print(args.join(' '));
-    else if (cmd === 'wallpaper') { WALLPAPERS.some(w => w.id === args[0]) ? applyWallpaper(args[0]) : print('wallpapers: ' + WALLPAPERS.map(w => w.id).join(' ')); }
-    else if (cmds[cmd]) cmds[cmd]();
-    else print('command not found: ' + cmd);
-    out.parentElement.scrollTop = out.parentElement.scrollHeight;
+    if (raw) {
+      const [cmd, ...args] = raw.split(/\s+/);
+      if (cmd === 'open') { APPS[args[0]] ? openApp(args[0]) : print('no such app: ' + args[0]); }
+      else if (cmd === 'echo') print(args.join(' '));
+      else if (cmd === 'wallpaper') { WALLPAPERS.some(w => w.id === args[0]) ? applyWallpaper(args[0]) : print('wallpapers: ' + WALLPAPERS.map(w => w.id).join(' ')); }
+      else if (cmds[cmd]) cmds[cmd]();
+      else print('command not found: ' + cmd);
+    }
+    body.scrollTop = body.scrollHeight;
   };
+  setTimeout(() => $('#t-in', body).focus(), 300);
 }
 
 function renderNotes(body) {
-  body.style.display = 'flex';
-  body.innerHTML = `<textarea class="notes-area" id="notes" placeholder="Transmission log..."></textarea>`;
+  body.innerHTML = `<h3 class="section-title">Notes</h3><textarea class="notes-area" id="notes" placeholder="Transmission log..."></textarea>`;
   const ta = $('#notes', body);
   ta.value = store.get('notes', '');
   ta.oninput = () => store.set('notes', ta.value);
@@ -591,15 +557,12 @@ function renderFiles(body) {
     System: [['kernel.img', '8.2 MB'], ['modules.conf', '1 KB'], ['noise.cfg', '512 B']],
     Encrypted: [['papers-01.pdf', '4 MB'], ['papers-02.pdf', '2 MB'], ['keys.gpg', '1 KB']]
   };
-  body.style.padding = '14px';
-  body.innerHTML = `<div class="files-layout"><nav class="files-side"></nav><div class="files-main"></div></div>`;
+  body.innerHTML = `<h3 class="section-title">Files</h3><div class="files-layout"><nav class="files-side"></nav><div class="files-main"></div></div>`;
   const side = $('.files-side', body), main = $('.files-main', body);
   const open = dir => {
     $$('.f-item', side).forEach(i => i.classList.toggle('active', i.textContent.trim() === dir));
     if (dir === 'Encrypted' && !state.unlockedFiles) {
-      main.innerHTML = `<div style="text-align:center;padding:40px 10px;color:var(--txt-dim)">
-        <i class="fas fa-lock" style="font-size:26px;display:block;margin-bottom:12px"></i>
-        Locked. Find the access code on the relay network.</div>`;
+      main.innerHTML = `<div class="locked-box"><i class="fas fa-lock"></i>Locked. Find the access code on the relay network.</div>`;
       return;
     }
     main.innerHTML = '';
@@ -624,22 +587,21 @@ function renderFiles(body) {
 
 function renderSettings(body) {
   body.innerHTML = `
-    <h3 class="section-title">Wallpaper</h3>
+    <h3 class="section-title">Wallpaper Protocols</h3>
     <div class="wp-grid" id="wp-grid"></div>
     <h3 class="section-title">System</h3>
-    <div class="row between" style="padding:10px 0;border-bottom:1px solid var(--line)">
-      <div><strong style="font-size:14px">Background FX</strong><br><small style="color:var(--txt-dim)">Animated particle field</small></div>
+    <div class="setting-row">
+      <div><strong>Snow FX</strong><br><small>Animated particle field</small></div>
       <label class="switch"><input type="checkbox" id="s-fx"><span class="slider"></span></label>
     </div>
-    <div class="row between" style="padding:10px 0;border-bottom:1px solid var(--line)">
-      <div><strong style="font-size:14px">Reset workspace</strong><br><small style="color:var(--txt-dim)">Clears pins, notes, wallpaper</small></div>
+    <div class="setting-row">
+      <div><strong>Reset workspace</strong><br><small>Clears pins, notes, wallpaper</small></div>
       <button class="btn" id="s-reset">Reset</button>
     </div>
     <h3 class="section-title">About</h3>
-    <p style="font-size:13px;line-height:1.8;color:#c8d0e0">
-      INTERFERENCE 1.0.4 — a browser-based desktop environment.<br>
-      Vanilla HTML/CSS/JS, no build step, state saved locally.
-    </p>`;
+    <p class="sub-note">INTERFERENCE 1.1.0 — a browser-based desktop environment.<br>
+    Vanilla HTML/CSS/JS, no build step, state saved locally.<br>
+    Hover the top edge of a window for its header, the bottom edge for the dock.</p>`;
   const grid = $('#wp-grid', body);
   WALLPAPERS.forEach(w => {
     const d = document.createElement('div');
@@ -662,11 +624,11 @@ function renderSettings(body) {
 
 function renderLog(body) {
   const entries = [
-    { v: '1.0.4', d: 'Current', items: ['Added Relay browser with internal itf:// pages', 'Terminal gained neofetch and wallpaper commands', 'Window snapping and double-click maximize'] },
-    { v: '1.0.3', d: 'Previous', items: ['Waveform player with live oscillator playback', 'Encrypted files vault behind access code', 'Pin/unpin apps via right-click'] },
-    { v: '1.0.2', d: 'Legacy', items: ['Boot sequence console output', 'Lock screen clock and wallpaper sync', 'Particle background FX toggle'] }
+    { v: '1.1.0', d: 'Current', items: ['Fullscreen window model with auto-hiding header', 'Edge triggers for dock and window chrome', 'Monochrome system theme'] },
+    { v: '1.0.4', d: 'Previous', items: ['Relay browser with internal itf:// pages', 'Terminal gained neofetch and wallpaper commands', 'Snow FX toggle'] },
+    { v: '1.0.2', d: 'Legacy', items: ['Boot sequence console output', 'Lock screen clock and wallpaper sync', 'Encrypted files vault behind access code'] }
   ];
-  body.innerHTML = entries.map(e => `
+  body.innerHTML = '<h3 class="section-title">Update Log</h3>' + entries.map(e => `
     <div class="log-entry">
       <small>${e.d}</small>
       <h4>Version ${e.v}</h4>
@@ -675,14 +637,13 @@ function renderLog(body) {
 }
 
 function renderCalc(body) {
-  body.innerHTML = `
-    <input class="browser-url" id="c-disp" value="0" readonly style="width:100%;text-align:right;font-size:20px;margin-bottom:12px">
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px" id="c-pad"></div>`;
+  body.innerHTML = `<div class="calc-wrap"><h3 class="section-title">Calc</h3>
+    <input class="calc-disp" id="c-disp" value="0" readonly>
+    <div class="calc-pad" id="c-pad"></div></div>`;
   const disp = $('#c-disp', body);
-  const keys = ['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+','C'];
   const pad = $('#c-pad', body);
   let buf = '';
-  keys.forEach(k => {
+  ['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+','C'].forEach(k => {
     const b = document.createElement('button');
     b.className = 'btn' + (k === '=' ? ' primary' : '');
     b.textContent = k;
@@ -722,21 +683,47 @@ function assistantReply(q) {
   return 'I only handle local system tasks: apps, wallpaper, music, files and time.';
 }
 
+function closeAssistant() { $('#assistant-window').classList.remove('open'); $('#assistant-backdrop').classList.remove('open'); }
+function openAssistant() {
+  $('#assistant-window').classList.add('open');
+  $('#assistant-backdrop').classList.add('open');
+  if (!$('#assistant-log').children.length) assistantSay('NOISE online. Ask me to open apps, change the wallpaper or play music.', 'bot');
+  $('#assistant-text').focus();
+}
+
 /* ============================== EVENTS ============================== */
 $('#boot-btn').onclick = startBoot;
 $('#lock-screen').onclick = unlock;
 
 let lastEnter = 0;
 addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
+  if (e.key === 'Enter' && !state.booted) {
     const now = Date.now();
-    if (now - lastEnter < 500 && !state.booted) skipBoot();
+    if (now - lastEnter < 600) skipBoot();
     lastEnter = now;
-    if (!$('#boot-layer').classList.contains('gone') && document.activeElement === $('#boot-btn')) return;
   }
   if (e.key === 'Escape') closeAllMenus();
   if (e.key === 'l' && e.ctrlKey && state.booted) { e.preventDefault(); lockSystem(); }
+  if (e.key === '`' && state.booted && !/input|textarea/i.test(document.activeElement.tagName)) {
+    e.preventDefault();
+    $('#assistant-window').classList.contains('open') ? closeAssistant() : openAssistant();
+  }
 });
+
+/* edge triggers: top reveals the active window header, bottom reveals the dock */
+$('#top-trigger').onmouseenter = () => {
+  const win = state.active && state.windows.get(state.active);
+  if (win) win.classList.add('header-visible');
+};
+$('#windows-layer').addEventListener('mousemove', e => {
+  const win = state.active && state.windows.get(state.active);
+  if (win) win.classList.toggle('header-visible', e.clientY < 60);
+});
+$('#bottom-trigger').onmouseenter = () => $('#dock-container').classList.remove('dock-hidden');
+$('#windows-layer').addEventListener('mouseenter', () => {
+  if (state.active) $('#dock-container').classList.add('dock-hidden');
+});
+$('#dock-container').onmouseenter = () => $('#dock-container').classList.remove('dock-hidden');
 
 $('#start-btn').onclick = e => {
   e.stopPropagation();
@@ -757,9 +744,7 @@ $('#start-menu').onclick = e => e.stopPropagation();
 $('#power-btn').onclick = () => location.reload();
 
 function filterTiles(sel, q) {
-  $$(`${sel} .app-tile`).forEach(t => {
-    t.style.display = t.dataset.name.includes(q.toLowerCase()) ? '' : 'none';
-  });
+  $$(`${sel} > div`).forEach(t => { t.style.display = t.dataset.name.includes(q.toLowerCase()) ? '' : 'none'; });
 }
 $('#drawer-search').oninput = e => filterTiles('#drawer-grid', e.target.value);
 $('#start-search-input').oninput = e => {
@@ -770,17 +755,18 @@ $('#start-search-input').oninput = e => {
     store.set('unlockedFiles', true);
     toast('Security', 'Encrypted files unlocked', 'Open the Files app');
     e.target.value = '';
+    filterTiles('#pinned-grid', '');
   }
 };
 
 $('#desktop-area').addEventListener('contextmenu', e => {
-  if (e.target.closest('.win, #dock-container, .os-menu, #app-drawer, #right-sidebar')) return;
+  if (e.target.closest('.window, #dock-container, .os-menu, #app-drawer, #right-sidebar, #assistant-window')) return;
   if (!state.booted) return;
   e.preventDefault();
   const m = $('#desktop-context-menu');
   m.classList.add('open');
-  m.style.left = Math.min(e.clientX, innerWidth - 230) + 'px';
-  m.style.top = Math.min(e.clientY, innerHeight - 260) + 'px';
+  m.style.left = Math.min(e.clientX, innerWidth - 240) + 'px';
+  m.style.top = Math.min(e.clientY, innerHeight - 280) + 'px';
 });
 addEventListener('click', () => closeAllMenus());
 
@@ -789,7 +775,7 @@ $$('#desktop-context-menu .ctx-item').forEach(item => {
     const a = item.dataset.ctx;
     closeAllMenus();
     if (a === 'wallpaper' || a === 'settings') openApp('settings');
-    if (a === 'fx') { state.fx = !state.fx; store.set('fx', state.fx); toast('Display', 'Background FX ' + (state.fx ? 'enabled' : 'disabled')); }
+    if (a === 'fx') { state.fx = !state.fx; store.set('fx', state.fx); toast('Display', 'Snow FX ' + (state.fx ? 'enabled' : 'disabled')); }
     if (a === 'lock') lockSystem();
     if (a === 'reload') location.reload();
   };
@@ -806,13 +792,6 @@ $$('.sidebar__card').forEach(card => {
 
 $('#assistant-close').onclick = closeAssistant;
 $('#assistant-backdrop').onclick = closeAssistant;
-function closeAssistant() { $('#assistant-window').classList.remove('open'); $('#assistant-backdrop').classList.remove('open'); }
-function openAssistant() {
-  $('#assistant-window').classList.add('open');
-  $('#assistant-backdrop').classList.add('open');
-  if (!$('#assistant-log').children.length) assistantSay('NOISE online. Ask me to open apps, change the wallpaper or play music.', 'bot');
-  $('#assistant-text').focus();
-}
 $('#assistant-form').onsubmit = e => {
   e.preventDefault();
   const v = $('#assistant-text').value.trim();
@@ -821,14 +800,7 @@ $('#assistant-form').onsubmit = e => {
   $('#assistant-text').value = '';
   setTimeout(() => assistantSay(assistantReply(v), 'bot'), 420);
 };
-addEventListener('keydown', e => {
-  if (e.key === '`' && state.booted && !/input|textarea/i.test(document.activeElement.tagName)) {
-    e.preventDefault();
-    $('#assistant-window').classList.contains('open') ? closeAssistant() : openAssistant();
-  }
-});
 
-/* meters */
 setInterval(() => {
   if (!state.booted) return;
   $('#m-cpu').style.width = (14 + Math.random() * 42).toFixed(0) + '%';
