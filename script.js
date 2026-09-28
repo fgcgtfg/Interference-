@@ -8,6 +8,7 @@ const store = {
 };
 
 const WALLPAPERS = [
+  { id: 'glitch', name: 'Glitch', url: 'https://images.unsplash.com/photo-1507908708918-778587c9e563?q=80&w=2400&auto=format&fit=crop' },
   { id: 'signal', name: 'Signal', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2400&auto=format&fit=crop' },
   { id: 'static', name: 'Static', url: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=2400&auto=format&fit=crop' },
   { id: 'foliage', name: 'Foliage', url: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=2400&auto=format&fit=crop' },
@@ -28,7 +29,8 @@ const state = {
   booted: false,
   fx: store.get('fx', true),
   wallpaper: store.get('wallpaper', WALLPAPERS[0].id),
-  pinned: store.get('pinned', ['hub', 'music', 'games', 'web', 'terminal', 'settings']),
+  pinned: store.get('pinned', ['flix', 'music', 'play', 'web', 'terminal', 'settings']),
+  albumArt: null,
   windows: new Map(),
   active: null,
   lastGame: store.get('lastGame', null),
@@ -39,16 +41,20 @@ const state = {
 
 /* ============================== APPS ============================== */
 const APPS = {
-  hub:      { name: 'Hub',        icon: 'fa-clapperboard', render: renderHub },
-  music:    { name: 'Waveform',   icon: 'fa-music',        render: renderMusic },
-  games:    { name: 'Arcade',     icon: 'fa-gamepad',      render: renderGames },
-  web:      { name: 'Relay',      icon: 'fa-globe',        render: renderBrowser },
-  terminal: { name: 'Terminal',   icon: 'fa-terminal',     render: renderTerminal },
-  notes:    { name: 'Notes',      icon: 'fa-note-sticky',  render: renderNotes },
-  files:    { name: 'Files',      icon: 'fa-folder',       render: renderFiles },
-  settings: { name: 'Config',     icon: 'fa-sliders',      render: renderSettings },
-  log:      { name: 'Update Log', icon: 'fa-list-check',   render: renderLog },
-  calc:     { name: 'Calc',       icon: 'fa-calculator',   render: renderCalc }
+  flix:     { name: 'Inter-Flix', icon: 'fas fa-play', tint: '#e50914', tile: '#140404', render: renderFlix,
+              splash: { word: 'INTER-FLIX', glyph: 'fas fa-play', color: '#e50914' } },
+  music:    { name: 'Pulse',      icon: 'fab fa-spotify', tint: '#1db954', tile: '#04140a', render: renderMusic,
+              splash: { word: 'PULSE', glyph: 'fab fa-spotify', color: '#1db954' } },
+  play:     { name: 'Inter-Play', icon: 'fab fa-playstation', tint: '#2f6fe4', tile: '#050d1c', render: renderPlay,
+              splash: { word: 'INTER-PLAY', glyph: 'fab fa-playstation', color: '#2f6fe4' } },
+  web:      { name: 'Relay',      icon: 'fas fa-globe', tint: '#d7d7d7', render: renderBrowser,
+              splash: { word: 'RELAY', glyph: 'fas fa-globe', color: '#d7d7d7' } },
+  terminal: { name: 'Terminal',   icon: 'fas fa-terminal', tint: '#9be89b', render: renderTerminal },
+  notes:    { name: 'Notes',      icon: 'fas fa-note-sticky', tint: '#f2c14e', render: renderNotes },
+  files:    { name: 'Files',      icon: 'fas fa-folder', tint: '#6fb3f2', render: renderFiles },
+  settings: { name: 'Config',     icon: 'fas fa-gear', tint: '#cfcfcf', render: renderSettings },
+  log:      { name: 'Update Log', icon: 'fas fa-list-check', tint: '#cfcfcf', render: renderLog },
+  calc:     { name: 'Calc',       icon: 'fas fa-calculator', tint: '#cfcfcf', render: renderCalc }
 };
 
 /* ============================== BOOT ============================== */
@@ -187,7 +193,8 @@ requestAnimationFrame(loop);
 function toast(head, title, sub) {
   const el = document.createElement('div');
   el.className = 'toast';
-  el.innerHTML = `<div class="t-head"><i class="fas fa-bell"></i> ${head}</div><strong></strong>${sub ? '<small></small>' : ''}`;
+  el.innerHTML = `<div class="t-head"><span><i class="fas fa-bell"></i> ${head}</span><i class="fas fa-times t-close"></i></div><strong></strong>${sub ? '<small></small>' : ''}`;
+  el.querySelector('.t-close').onclick = () => el.remove();
   el.querySelector('strong').textContent = title;
   if (sub) el.querySelector('small').textContent = sub;
   $('#toast-container').appendChild(el);
@@ -219,11 +226,22 @@ function openApp(id) {
     $('#windows-layer').appendChild(win);
     state.windows.set(id, win);
     app.render($('.win-body', win), win);
+    if (app.splash) showSplash(win, app.splash);
     $('.btn-min', win).onclick = () => minimizeApp(id);
     $('.btn-close', win).onclick = () => closeApp(id);
   }
   showWindow(id);
   return win;
+}
+
+function showSplash(win, s) {
+  const el = document.createElement('div');
+  el.className = 'app-splash';
+  el.innerHTML = `<i class="${s.glyph}" style="color:${s.color}"></i><span class="splash-word">${s.word}</span>`;
+  el.style.setProperty('--splash', s.color);
+  win.appendChild(el);
+  setTimeout(() => el.classList.add('out'), 1500);
+  setTimeout(() => el.remove(), 2100);
 }
 
 function showWindow(id) {
@@ -267,7 +285,9 @@ function dockButton(id) {
   b.className = 'dock-item';
   b.title = app.name;
   b.dataset.app = id;
-  b.innerHTML = `<i class="fas ${app.icon}"></i>`;
+  b.innerHTML = `<i class="${app.icon}"></i>`;
+  b.style.color = app.tint || '#fff';
+  if (app.tile) b.style.background = app.tile;
   b.onclick = e => {
     e.stopPropagation();
     state.active === id ? minimizeApp(id) : openApp(id);
@@ -313,7 +333,7 @@ function tile(id, cls) {
   const el = document.createElement('div');
   el.className = cls;
   el.dataset.name = app.name.toLowerCase();
-  el.innerHTML = `<div class="tile-icon"><i class="fas ${app.icon}"></i></div><span>${app.name}</span>`;
+  el.innerHTML = `<div class="tile-icon" style="color:${app.tint || '#fff'}${app.tile ? ';background:' + app.tile : ''}"><i class="${app.icon}"></i></div><span>${app.name}</span>`;
   el.onclick = () => { closeAllMenus(); openApp(id); };
   el.oncontextmenu = e => {
     e.preventDefault();
@@ -343,56 +363,123 @@ function closeAllMenus() {
 }
 
 /* ============================== APP RENDERERS ============================== */
-function renderHub(body) {
-  const items = [
-    { t: 'Signal Lost', s: 'Series · 2 seasons', i: 'fa-tower-broadcast' },
-    { t: 'The Quiet Band', s: 'Film · 118 min', i: 'fa-film' },
-    { t: 'Nightshift', s: 'Series · 1 season', i: 'fa-moon' },
-    { t: 'Deadzone', s: 'Film · 94 min', i: 'fa-radiation' },
-    { t: 'Analog Hearts', s: 'Film · 102 min', i: 'fa-heart' },
-    { t: 'Static Bloom', s: 'Doc · 76 min', i: 'fa-seedling' },
-    { t: 'Ghost Channel', s: 'Series · 3 seasons', i: 'fa-ghost' },
-    { t: 'Off Air', s: 'Short · 22 min', i: 'fa-tv' }
-  ];
-  body.innerHTML = `<h3 class="section-title">Continue Watching</h3><div class="grid-cards"></div>`;
-  const grid = $('.grid-cards', body);
-  items.forEach(it => {
-    const c = document.createElement('div');
-    c.className = 'media-card';
-    c.innerHTML = `<div class="thumb"><i class="fas ${it.i}"></i></div><div class="meta"><strong></strong><small></small></div>`;
-    $('strong', c).textContent = it.t;
-    $('small', c).textContent = it.s;
-    c.onclick = () => toast('Hub', it.t, 'Stream unavailable in demo build');
-    grid.appendChild(c);
+const FLIX_ROWS = [
+  { title: 'Trending Now', items: [
+    { t: 'Signal Lost', s: 'Series · 2 seasons', g: 'linear-gradient(135deg,#3a0d0d,#7a1414)' },
+    { t: 'The Quiet Band', s: 'Film · 118 min', g: 'linear-gradient(135deg,#101b2e,#24406b)' },
+    { t: 'Nightshift', s: 'Series · 1 season', g: 'linear-gradient(135deg,#1c1c2e,#3b2f63)' },
+    { t: 'Deadzone', s: 'Film · 94 min', g: 'linear-gradient(135deg,#2b2412,#6b5416)' },
+    { t: 'Analog Hearts', s: 'Film · 102 min', g: 'linear-gradient(135deg,#2e1220,#6b1d47)' },
+    { t: 'Off Air', s: 'Short · 22 min', g: 'linear-gradient(135deg,#14251f,#1f5a45)' }
+  ]},
+  { title: 'Continue Watching', items: [
+    { t: 'Static Bloom', s: 'Doc · 76 min', g: 'linear-gradient(135deg,#232323,#4d4d4d)' },
+    { t: 'Ghost Channel', s: 'Series · 3 seasons', g: 'linear-gradient(135deg,#0f1f2b,#1d4f66)' },
+    { t: 'Carrier', s: 'Film · 131 min', g: 'linear-gradient(135deg,#2a0f0f,#5c1f1f)' },
+    { t: 'Low Orbit', s: 'Series · 1 season', g: 'linear-gradient(135deg,#131a2b,#2f3d73)' },
+    { t: 'Dead Air', s: 'Film · 88 min', g: 'linear-gradient(135deg,#251527,#54265b)' },
+    { t: 'Mirrorbox', s: 'Doc · 64 min', g: 'linear-gradient(135deg,#1a2118,#395c2c)' }
+  ]}
+];
+
+function renderFlix(body) {
+  body.classList.add('flush');
+  body.innerHTML = `
+    <div class="flix">
+      <div class="flix-hero">
+        <div class="flix-hero-copy">
+          <div class="flix-tag">Interference Original</div>
+          <h2>Signal Lost</h2>
+          <p>A pirate broadcaster chases a transmission that shouldn't exist. Two seasons, no answers.</p>
+          <div class="row">
+            <button class="btn primary"><i class="fas fa-play"></i> Play</button>
+            <button class="btn"><i class="fas fa-circle-info"></i> More Info</button>
+          </div>
+        </div>
+      </div>
+      <div class="flix-rows"></div>
+    </div>`;
+  const rows = $('.flix-rows', body);
+  FLIX_ROWS.forEach(r => {
+    const sec = document.createElement('section');
+    sec.className = 'flix-row';
+    sec.innerHTML = `<h3 class="row-title">${r.title}</h3><div class="row-strip"></div>`;
+    const strip = $('.row-strip', sec);
+    r.items.forEach(it => {
+      const c = document.createElement('div');
+      c.className = 'poster';
+      c.style.background = it.g;
+      c.innerHTML = `<div class="poster-meta"><strong></strong><small></small></div>`;
+      $('strong', c).textContent = it.t;
+      $('small', c).textContent = it.s;
+      c.onclick = () => toast('Flix', it.t, 'Playback unavailable in demo build');
+      strip.appendChild(c);
+    });
+    rows.appendChild(sec);
   });
+  $('.flix-hero .btn.primary', body).onclick = () => toast('Flix', 'Signal Lost', 'Playback unavailable in demo build');
 }
 
-let audioCtx = null, osc = null, gainNode = null;
+/* ------------------------------ MUSIC (PULSE) ------------------------------ */
+const ALBUMS = [
+  { t: "Don't Stop Believin'", a: 'Journey', g: 'linear-gradient(135deg,#c2452d,#e8a13a)' },
+  { t: 'Chess (Rat Dance)', a: 'Kim Bo', g: 'linear-gradient(135deg,#141414,#3a3a3a)' },
+  { t: 'Carrier Wave', a: 'Null Sector', g: 'linear-gradient(135deg,#11303a,#1f7f6b)' },
+  { t: 'Ghost Channel', a: 'Null Sector', g: 'linear-gradient(135deg,#2b1440,#6b2fa0)' },
+  { t: 'Dead Air', a: 'Mirrorbox', g: 'linear-gradient(135deg,#2a2a10,#8a7d24)' },
+  { t: 'Interference', a: 'Mirrorbox', g: 'linear-gradient(135deg,#3a0f22,#a32350)' },
+  { t: 'Lost Transmission', a: 'Vela', g: 'linear-gradient(135deg,#0f1b3a,#2c49a3)' },
+  { t: 'Top Hits 2026', a: 'Various', g: 'linear-gradient(135deg,#1a1a1a,#444)' }
+];
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening';
+}
+
 function renderMusic(body) {
+  body.classList.add('flush');
   body.innerHTML = `
-    <div class="player">
-      <div class="art"><i class="fas fa-compact-disc"></i></div>
-      <div>
-        <div class="track-name" id="pl-name">—</div>
-        <div class="track-artist" id="pl-artist">select a track</div>
+    <div class="spot">
+      <header class="spot-top">
+        <div class="row">
+          <button class="round-btn"><i class="fas fa-chevron-left"></i></button>
+          <button class="round-btn"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="chip"><i class="fas fa-circle-user"></i> User</div>
+      </header>
+      <div class="spot-scroll">
+        <h1 class="spot-greet">${greeting()}</h1>
+        <h3 class="row-title">Today's Hits</h3>
+        <div class="album-grid" id="album-grid"></div>
       </div>
-      <div class="seek"><i id="pl-seek"></i></div>
-      <div class="controls">
-        <i class="fas fa-backward-step" id="pl-prev"></i>
-        <i class="fas fa-circle-play big" id="pl-toggle"></i>
-        <i class="fas fa-forward-step" id="pl-next"></i>
-      </div>
-      <div class="playlist" id="pl-list"></div>
+      <footer class="spot-player">
+        <div class="now">
+          <div class="now-art" id="now-art"></div>
+          <div class="now-meta"><strong id="pl-name">—</strong><small id="pl-artist">select a track</small></div>
+        </div>
+        <div class="player-center">
+          <div class="controls">
+            <i class="fas fa-shuffle"></i>
+            <i class="fas fa-backward-step" id="pl-prev"></i>
+            <button class="play-round" id="pl-toggle"><i class="fas fa-play"></i></button>
+            <i class="fas fa-forward-step" id="pl-next"></i>
+            <i class="fas fa-repeat"></i>
+          </div>
+          <div class="bar-row"><span id="pl-cur">0:00</span><div class="seek"><i id="pl-seek"></i></div><span id="pl-dur">0:00</span></div>
+        </div>
+        <div class="player-right"><i class="fas fa-volume-high"></i><div class="vol"><i></i></div></div>
+      </footer>
     </div>`;
-  const list = $('#pl-list', body);
-  TRACKS.forEach((t, idx) => {
-    const r = document.createElement('div');
-    r.className = 'p-row';
-    r.dataset.idx = idx;
-    r.innerHTML = `<i class="fas fa-music"></i><span></span><span class="dur">${t.dur}</span>`;
-    r.querySelector('span').textContent = t.name;
-    r.onclick = () => playTrack(idx);
-    list.appendChild(r);
+  const grid = $('#album-grid', body);
+  ALBUMS.forEach((al, idx) => {
+    const c = document.createElement('div');
+    c.className = 'album';
+    c.innerHTML = `<div class="album-art" style="background:${al.g}"><i class="fas fa-play album-play"></i></div><strong></strong><small></small>`;
+    $('strong', c).textContent = al.t;
+    $('small', c).textContent = al.a;
+    c.onclick = () => playTrack(idx % TRACKS.length, al);
+    grid.appendChild(c);
   });
   $('#pl-toggle', body).onclick = () => (state.playing ? stopTone() : playTrack(state.track ?? 0));
   $('#pl-next', body).onclick = () => playTrack(((state.track ?? -1) + 1) % TRACKS.length);
@@ -400,9 +487,12 @@ function renderMusic(body) {
   if (state.track !== null) paintTrack();
 }
 
-function playTrack(idx) {
+let audioCtx = null, osc = null, gainNode = null;
+
+function playTrack(idx, album) {
   state.track = idx;
   const t = TRACKS[idx];
+  if (album) state.albumArt = album.g;
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     stopTone(true);
@@ -417,7 +507,7 @@ function playTrack(idx) {
   state.playing = true;
   paintTrack();
   $('#quick-track-name').textContent = t.name;
-  toast('Waveform', t.name, t.artist);
+  toast('Pulse', t.name, t.artist);
 }
 
 function stopTone(silent) {
@@ -433,19 +523,134 @@ function paintTrack() {
   const t = TRACKS[state.track];
   $('#pl-name', win).textContent = t.name;
   $('#pl-artist', win).textContent = t.artist;
-  $('#pl-toggle', win).className = `fas ${state.playing ? 'fa-circle-pause' : 'fa-circle-play'} big`;
-  $$('.p-row', win).forEach(r => r.classList.toggle('active', +r.dataset.idx === state.track));
+  $('#pl-dur', win).textContent = t.dur;
+  $('#pl-toggle i', win).className = `fas ${state.playing ? 'fa-pause' : 'fa-play'}`;
+  $('#now-art', win).style.background = state.albumArt || 'linear-gradient(135deg,#222,#444)';
   $('#pl-seek', win).style.width = state.playing ? '38%' : '0%';
 }
 
-function renderGames(body) {
+/* ------------------------------ CONSOLE (INTER-PLAY) ------------------------------ */
+const STORE_GAMES = [
+  { id: 'interlock', t: 'Interlock', g: 'linear-gradient(135deg,#1b2a4a,#3f6fb5)', k: 'Game' },
+  { id: 'snake', t: 'Signal Snake', g: 'linear-gradient(135deg,#123021,#2f8a50)', k: 'Game' },
+  { id: 'reflex', t: 'Reflex Test', g: 'linear-gradient(135deg,#3a1030,#9b2a6d)', k: 'Game' },
+  { id: 'support', t: 'Customer Support', g: 'linear-gradient(135deg,#1c1c1c,#3a3a3a)', k: 'Game' },
+  { id: 'temple', t: 'Forest Temple', g: 'linear-gradient(135deg,#4a3a10,#a07c1e)', k: 'Game' }
+];
+
+function renderPlay(body) {
+  body.classList.add('flush');
   body.innerHTML = `
-    <div class="game-wrap">
-      <h3 class="section-title">Arcade · Interlock</h3>
-      <div class="game-board" id="gb"></div>
-      <div class="row between"><span id="g-status">You are X</span><button class="btn" id="g-reset">Reset</button></div>
+    <div class="ps">
+      <nav class="ps-tabs">
+        <button class="ps-tab active" data-tab="home">Home</button>
+        <button class="ps-tab" data-tab="library">Game Library</button>
+        <button class="ps-tab" data-tab="store">Play Store</button>
+        <button class="ps-tab" data-tab="search"><i class="fas fa-search"></i> Search</button>
+        <i class="fas fa-gear ps-gear"></i>
+      </nav>
+      <div class="ps-view" id="ps-view"></div>
     </div>`;
-  const board = $('#gb', body);
+  const view = $('#ps-view', body);
+
+  const installed = () => store.get('installed', ['interlock']);
+  const install = id => {
+    const list = installed();
+    if (list.includes(id)) return;
+    list.push(id);
+    store.set('installed', list);
+    toast('Play Store', STORE_GAMES.find(g => g.id === id).t, 'Installed to library');
+  };
+
+  const storeCard = g => {
+    const inst = installed().includes(g.id);
+    const c = document.createElement('article');
+    c.className = 'store-card';
+    c.innerHTML = `<div class="store-art" style="background:${g.g}"><span></span></div>
+      <div class="store-meta"><strong></strong><div class="row between"><small>${g.k}</small>
+      <button class="get-btn">${inst ? 'PLAY' : 'GET'}</button></div></div>`;
+    $('.store-art span', c).textContent = g.t;
+    $('strong', c).textContent = g.t;
+    $('.get-btn', c).onclick = e => {
+      e.stopPropagation();
+      if (installed().includes(g.id)) launchGame(g.id, view);
+      else { install(g.id); tab('store'); }
+    };
+    return c;
+  };
+
+  const tab = name => {
+    $$('.ps-tab', body).forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    view.innerHTML = '';
+    if (name === 'home') {
+      view.innerHTML = `<div class="ps-hero"><div class="ps-hero-copy"><small>Jump back in</small><h2>${state.lastGame || 'Interlock'}</h2>
+        <button class="btn primary" id="ps-resume"><i class="fas fa-play"></i> Play</button></div></div>
+        <h3 class="row-title">Your Library</h3><div class="ps-grid" id="ps-home-grid"></div>`;
+      const grid = $('#ps-home-grid', view);
+      STORE_GAMES.filter(g => installed().includes(g.id)).forEach(g => {
+        const t = document.createElement('div');
+        t.className = 'ps-tile';
+        t.style.background = g.g;
+        t.innerHTML = `<span></span>`;
+        t.querySelector('span').textContent = g.t;
+        t.onclick = () => launchGame(g.id, view);
+        grid.appendChild(t);
+      });
+      $('#ps-resume', view).onclick = () => launchGame(installed()[0], view);
+    }
+    if (name === 'library') {
+      view.innerHTML = `<h3 class="row-title">Game Library</h3><div class="ps-grid" id="ps-lib"></div>`;
+      const grid = $('#ps-lib', view);
+      const list = STORE_GAMES.filter(g => installed().includes(g.id));
+      if (!list.length) grid.innerHTML = '<p class="sub-note">No games installed. Grab one from the Play Store.</p>';
+      list.forEach(g => {
+        const t = document.createElement('div');
+        t.className = 'ps-tile';
+        t.style.background = g.g;
+        t.innerHTML = `<span></span>`;
+        t.querySelector('span').textContent = g.t;
+        t.onclick = () => launchGame(g.id, view);
+        grid.appendChild(t);
+      });
+    }
+    if (name === 'store') {
+      view.innerHTML = `<h3 class="row-title">Play Store</h3><div class="store-grid" id="store-grid"></div>`;
+      const grid = $('#store-grid', view);
+      STORE_GAMES.forEach(g => grid.appendChild(storeCard(g)));
+    }
+    if (name === 'search') {
+      view.innerHTML = `<div class="ps-search"><i class="fas fa-search"></i><input id="ps-q" placeholder="Search games..."></div><div class="store-grid" id="store-grid"></div>`;
+      const grid = $('#store-grid', view);
+      const paint = q => {
+        grid.innerHTML = '';
+        STORE_GAMES.filter(g => g.t.toLowerCase().includes(q)).forEach(g => grid.appendChild(storeCard(g)));
+      };
+      paint('');
+      $('#ps-q', view).oninput = e => paint(e.target.value.toLowerCase());
+    }
+  };
+  $$('.ps-tab', body).forEach(t => (t.onclick = () => tab(t.dataset.tab)));
+  tab('home');
+}
+
+function launchGame(id, view) {
+  const game = STORE_GAMES.find(g => g.id === id) || STORE_GAMES[0];
+  state.lastGame = game.t;
+  store.set('lastGame', game.t);
+  $('#last-game-name').textContent = game.t;
+  view.innerHTML = `<div class="game-shell"><div class="row between"><h3 class="row-title">${game.t}</h3>
+    <button class="btn" id="game-exit">Exit</button></div><div id="game-host"></div></div>`;
+  $('#game-exit', view).onclick = () => { const w = state.windows.get('play'); closeApp('play'); setTimeout(() => openApp('play'), 60); void w; };
+  const host = $('#game-host', view);
+  if (id === 'snake') return gameSnake(host);
+  if (id === 'reflex') return gameReflex(host);
+  return gameInterlock(host);
+}
+
+function gameInterlock(host) {
+  host.innerHTML = `<div class="game-wrap"><div class="game-board" id="gb"></div>
+    <div class="row between"><span id="g-status">You are X</span><button class="btn" id="g-reset">Reset</button></div></div>`;
+  const board = $('#gb', host);
   const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   let cells = Array(9).fill('');
   const winnerLine = c => LINES.find(l => c[l[0]] && c[l[0]] === c[l[1]] && c[l[1]] === c[l[2]]);
@@ -459,6 +664,7 @@ function renderGames(body) {
       board.appendChild(d);
     });
   };
+  const end = w => $('#g-status', host).textContent = w ? `${w} wins` : 'Draw';
   const move = i => {
     if (cells[i] || winnerLine(cells)) return;
     cells[i] = 'X'; paint();
@@ -470,15 +676,67 @@ function renderGames(body) {
     l = winnerLine(cells);
     if (l || cells.every(Boolean)) end(l && cells[l[0]]);
   };
-  const end = w => {
-    $('#g-status', body).textContent = w ? `${w} wins` : 'Draw';
-    toast('Arcade', w ? `${w} wins` : 'Draw', 'Interlock');
-  };
-  $('#g-reset', body).onclick = () => { cells = Array(9).fill(''); $('#g-status', body).textContent = 'You are X'; paint(); };
+  $('#g-reset', host).onclick = () => { cells = Array(9).fill(''); $('#g-status', host).textContent = 'You are X'; paint(); };
   paint();
-  state.lastGame = 'Interlock';
-  store.set('lastGame', state.lastGame);
-  $('#last-game-name').textContent = 'Interlock';
+}
+
+function gameSnake(host) {
+  host.innerHTML = `<div class="game-wrap"><canvas id="snake" width="360" height="360" class="game-canvas"></canvas>
+    <p class="sub-note">Arrow keys to steer. Score: <b id="s-score">0</b></p></div>`;
+  const c = $('#snake', host).getContext('2d');
+  const N = 18, S = 20;
+  let snake = [{ x: 8, y: 8 }], dir = { x: 1, y: 0 }, food = { x: 4, y: 4 }, score = 0, dead = false;
+  const key = e => {
+    const map = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+    const d = map[e.key];
+    if (!d) return;
+    e.preventDefault();
+    if (d[0] !== -dir.x || d[1] !== -dir.y) dir = { x: d[0], y: d[1] };
+  };
+  addEventListener('keydown', key);
+  const timer = setInterval(() => {
+    if (!document.body.contains(host)) { clearInterval(timer); removeEventListener('keydown', key); return; }
+    if (dead) return;
+    const head = { x: (snake[0].x + dir.x + N) % N, y: (snake[0].y + dir.y + N) % N };
+    if (snake.some(s => s.x === head.x && s.y === head.y)) { dead = true; toast('Inter-Play', 'Game over', 'Score ' + score); return; }
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+      score++; $('#s-score', host).textContent = score;
+      food = { x: Math.floor(Math.random() * N), y: Math.floor(Math.random() * N) };
+    } else snake.pop();
+    c.fillStyle = '#0a0a0a'; c.fillRect(0, 0, 360, 360);
+    c.fillStyle = '#555'; c.fillRect(food.x * S + 4, food.y * S + 4, S - 8, S - 8);
+    c.fillStyle = '#fff'; snake.forEach(s => c.fillRect(s.x * S + 2, s.y * S + 2, S - 4, S - 4));
+  }, 110);
+}
+
+function gameReflex(host) {
+  host.innerHTML = `<div class="game-wrap"><div class="reflex" id="rx">Click to start</div>
+    <p class="sub-note">Best: <b id="rx-best">—</b></p></div>`;
+  const box = $('#rx', host);
+  let t0 = 0, armed = false, timer = null;
+  box.onclick = () => {
+    if (timer) { clearTimeout(timer); timer = null; box.textContent = 'Too early — click to retry'; box.className = 'reflex'; armed = false; return; }
+    if (!armed) {
+      box.textContent = 'Wait for white...';
+      box.className = 'reflex';
+      timer = setTimeout(() => {
+        timer = null; armed = true; t0 = performance.now();
+        box.textContent = 'CLICK';
+        box.className = 'reflex go';
+      }, 900 + Math.random() * 2200);
+      return;
+    }
+    const ms = Math.round(performance.now() - t0);
+    armed = false;
+    box.textContent = ms + ' ms — click to retry';
+    box.className = 'reflex';
+    const best = store.get('reflexBest', null);
+    if (best === null || ms < best) { store.set('reflexBest', ms); }
+    $('#rx-best', host).textContent = store.get('reflexBest', ms) + ' ms';
+  };
+  const best = store.get('reflexBest', null);
+  if (best !== null) $('#rx-best', host).textContent = best + ' ms';
 }
 
 const PAGES = {
@@ -674,8 +932,8 @@ function assistantSay(text, who) {
 function assistantReply(q) {
   const s = q.toLowerCase();
   if (/wallpaper|background/.test(s)) { openApp('settings'); return 'Opened Config — wallpapers are at the top.'; }
-  if (/music|song|play/.test(s)) { openApp('music'); return 'Waveform is up. Pick a track from the playlist.'; }
-  if (/game|arcade/.test(s)) { openApp('games'); return 'Launching Interlock. You play X.'; }
+  if (/music|song|track/.test(s)) { openApp('music'); return 'Pulse is up. Pick something from Today\'s Hits.'; }
+  if (/game|arcade|play/.test(s)) { openApp('play'); return 'Inter-Play is booting. Your library is on the home tab.'; }
   if (/file|paper|secret|code/.test(s)) return 'Encrypted files unlock from the Relay browser. Try visiting itf://secret.';
   if (/terminal|command/.test(s)) { openApp('terminal'); return 'Terminal open — type "help" for commands.'; }
   if (/time|date/.test(s)) return new Date().toLocaleString();
@@ -784,7 +1042,7 @@ $$('#desktop-context-menu .ctx-item').forEach(item => {
 $$('.sidebar__card').forEach(card => {
   card.onclick = () => {
     const a = card.dataset.action;
-    if (a === 'last-played') openApp('games');
+    if (a === 'last-played') openApp('play');
     if (a === 'quick-play') { openApp('music'); playTrack(state.track ?? 0); }
     if (a === 'update-log') openApp('log');
   };
