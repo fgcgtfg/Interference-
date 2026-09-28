@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INTERFERENCE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body id="desktop-area">
+
+<div id="fps-counter"><span id="fps-val">60</span> FPS</div>
+
+<!-- BOOT -->
+<section id="boot-layer">
+  <div id="boot-content">
+    <h1 class="boot-logo">INTERFERENCE</h1>
+    <p class="boot-sub">Interference Systems // V1</p>
+    <button id="boot-btn" tabindex="1">Enter SYSTEM</button>
+    <div class="boot-hint">Press ENTER twice to skip sequence</div>
+  </div>
+  <pre id="boot-console" aria-hidden="true"></pre>
+  <div id="boot-progress"><div id="boot-bar"></div></div>
+</section>
+
+<!-- LOCK -->
+<main id="lock-screen">
+  <div id="lock-bg" class="wallpaper-layer"></div>
+  <article id="lock-ui">
+    <div class="l-day" id="lock-day">MONDAY</div>
+    <div class="l-date" id="lock-date">01 JANUARY, 2026.</div>
+    <div class="l-time" id="lock-time">- 00:00 -</div>
+    <div class="l-hint">Click anywhere to unlock</div>
+  </article>
+</main>
+
+<!-- DESKTOP -->
+<div id="bg-layer" class="wallpaper-layer"></div>
+<canvas id="fx-canvas"></canvas>
+
+<header id="hud-top"><div class="hud-day" id="hud-day">MONDAY</div></header>
+
+<aside id="right-sidebar">
+  <section class="sidebar__section">
+    <h3 class="sidebar__title">Jump Back In!</h3>
+    <div class="sidebar__card" data-action="last-played" role="button" tabindex="0">
+      <div class="sidebar__icon"><i class="fas fa-gamepad"></i></div>
+      <div class="sidebar__info"><strong id="last-game-name">No Recent Game</strong><small>Arcade</small></div>
+    </div>
+  </section>
+  <section class="sidebar__section">
+    <h3 class="sidebar__title">Quick Play</h3>
+    <div class="sidebar__card" data-action="quick-play" role="button" tabindex="0">
+      <div class="sidebar__icon green"><i class="fas fa-music"></i></div>
+      <div class="sidebar__info"><strong id="quick-track-name">Not Playing</strong><small>Waveform</small></div>
+      <i class="fas fa-play play-overlay"></i>
+    </div>
+  </section>
+  <section class="sidebar__section">
+    <h3 class="sidebar__title">System Status</h3>
+    <div class="sidebar__card update-card" data-action="update-log" role="button" tabindex="0">
+      <div class="sidebar__info"><strong class="txt-highlight">Update Log</strong><small>View latest patches</small></div>
+      <i class="fas fa-chevron-right sidebar__chevron"></i>
+    </div>
+  </section>
+  <section class="sidebar__section">
+    <h3 class="sidebar__title">Signal</h3>
+    <div class="sidebar__card meters">
+      <div class="meter"><span>CPU</span><div class="bar"><i id="m-cpu"></i></div></div>
+      <div class="meter"><span>MEM</span><div class="bar"><i id="m-mem"></i></div></div>
+      <div class="meter"><span>NET</span><div class="bar"><i id="m-net"></i></div></div>
+    </div>
+  </section>
+</aside>
+
+<section id="windows-layer"></section>
+
+<nav id="dock-container">
+  <button class="dock-btn" id="start-btn" title="Start"><i class="fas fa-tower-broadcast"></i></button>
+  <button class="dock-btn" id="drawer-btn" title="All Apps"><i class="fas fa-border-all"></i></button>
+  <div class="dock-sep"></div>
+  <div id="dock-apps"></div>
+  <div class="dock-sep"></div>
+  <div id="dock-tasks"></div>
+  <div class="dock-spacer"></div>
+  <div class="dock-tray">
+    <i class="fas fa-wifi"></i>
+    <i class="fas fa-volume-high"></i>
+    <span id="dock-clock">00:00</span>
+  </div>
+</nav>
+
+<!-- START MENU -->
+<aside id="start-menu" class="os-menu">
+  <div class="start-search-bar">
+    <i class="fas fa-search search-icon"></i>
+    <input type="text" id="start-search-input" placeholder="Type a secret code to unlock files...">
+  </div>
+  <header class="pinned-header"><h3>Pinned</h3></header>
+  <div class="pinned-grid" id="pinned-grid"></div>
+  <footer class="start-footer">
+    <div class="user-profile"><div class="user-avatar"><i class="fas fa-user"></i></div><span class="user-role">Administrator</span></div>
+    <i class="fas fa-power-off power-btn" id="power-btn" role="button" tabindex="0" title="Restart"></i>
+  </footer>
+</aside>
+
+<!-- APP DRAWER -->
+<div id="app-drawer">
+  <div class="drawer-panel">
+    <div class="drawer-search-wrap">
+      <i class="fas fa-search search-icon"></i>
+      <input type="text" id="drawer-search" class="drawer-search-input" placeholder="Search apps...">
+    </div>
+    <div class="drawer-grid" id="drawer-grid"></div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<menu id="desktop-context-menu" class="os-context-menu">
+  <li class="ctx-item" data-ctx="wallpaper"><i class="fas fa-image fa-fw"></i> Change Wallpaper</li>
+  <li class="ctx-item" data-ctx="settings"><i class="fas fa-sliders fa-fw"></i> System Settings</li>
+  <li class="ctx-separator"></li>
+  <li class="ctx-item" data-ctx="fx"><i class="fas fa-wand-magic-sparkles fa-fw"></i> Toggle Background FX</li>
+  <li class="ctx-item" data-ctx="lock"><i class="fas fa-lock fa-fw"></i> Lock Screen</li>
+  <li class="ctx-separator"></li>
+  <li class="ctx-item" data-ctx="reload"><i class="fas fa-sync fa-fw"></i> Refresh System</li>
+</menu>
+
+<div id="toast-container"></div>
+
+<!-- ASSISTANT -->
+<div id="assistant-backdrop"></div>
+<aside id="assistant-window">
+  <header class="assistant-head">
+    <div class="assistant-id"><span class="dot"></span> NOISE <small>// assistant</small></div>
+    <i class="fas fa-times" id="assistant-close" role="button" tabindex="0"></i>
+  </header>
+  <div class="assistant-log" id="assistant-log"></div>
+  <form class="assistant-input" id="assistant-form">
+    <input type="text" id="assistant-text" placeholder="Ask NOISE something..." autocomplete="off">
+    <button type="submit"><i class="fas fa-paper-plane"></i></button>
+  </form>
+</aside>
+
+<script src="script.js"></script>
+</body>
+</html>
